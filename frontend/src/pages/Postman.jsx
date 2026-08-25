@@ -7,7 +7,7 @@ import {
   Send, User, Wheat, ChevronRight, AlertCircle, Trash2,
   Info,
 } from 'lucide-react';
-import { submitApplication } from '../api/client';
+import { submitApplication, fetchScore } from '../api/client';
 
 // Fix Leaflet default icon (Vite asset issue)
 delete L.Icon.Default.prototype._getIconUrl;
@@ -360,6 +360,12 @@ export default function Postman() {
         cibil_score: -1,
         consent_captured: true,
       });
+      try {
+        const scoreData = await fetchScore(result.application_id);
+        result.score = scoreData.kisan_score;
+      } catch (scoreError) {
+        console.error("Failed to fetch score immediately:", scoreError);
+      }
       setSubmitted(result);
     } catch (e) {
       setError(`Submission failed: ${e.message}`);
@@ -385,7 +391,18 @@ export default function Postman() {
               <CheckCircle2 size={32} className="text-green-600" />
             </div>
             <h1 className="text-xl font-black text-gray-900 mb-1">Application Submitted!</h1>
-            <p className="text-gray-500 text-sm mb-5">The AI Scoring Engine will process this within minutes.</p>
+            <p className="text-gray-500 text-sm mb-5">The AI Scoring Engine has processed this application.</p>
+            
+            {submitted.score && (
+              <div className="mb-6 flex flex-col items-center">
+                <p className="text-xs text-gray-500 font-bold uppercase tracking-wider mb-2">Generated Kisan Score</p>
+                <div className={`w-24 h-24 rounded-full flex flex-col items-center justify-center border-4 bg-white shadow-inner
+                  ${submitted.score >= 700 ? 'border-green-500 text-green-600' : submitted.score >= 550 ? 'border-amber-500 text-amber-600' : 'border-red-500 text-red-600'}`}>
+                  <span className="text-3xl font-black">{submitted.score}</span>
+                </div>
+              </div>
+            )}
+            
             <div className="bg-gray-50 rounded-xl px-6 py-4 border border-gray-200 mb-4">
               <p className="text-xs text-gray-400 mb-1">Application Reference ID</p>
               <p className="text-2xl font-black text-[#c8102e] font-mono">{submitted.application_id}</p>
