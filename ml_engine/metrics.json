@@ -1,0 +1,53 @@
+{
+  "Logistic Regression": {
+    "accuracy": 0.725,
+    "precision": 0.751,
+    "recall": 0.8017,
+    "f1_score": 0.7755,
+    "roc_auc": 0.8162,
+    "confusion_matrix": [
+      [
+        100,
+        63
+      ],
+      [
+        47,
+        190
+      ]
+    ]
+  },
+  "Random Forest": {
+    "accuracy": 0.7275,
+    "precision": 0.7623,
+    "recall": 0.7848,
+    "f1_score": 0.7734,
+    "roc_auc": 0.8416,
+    "confusion_matrix": [
+      [
+        105,
+        58
+      ],
+      [
+        51,
+        186
+      ]
+    ]
+  },
+  "XGBoost Classifier": {
+    "accuracy": 0.7375,
+    "precision": 0.83,
+    "recall": 0.7004,
+    "f1_score": 0.7597,
+    "roc_auc": 0.8354,
+    "confusion_matrix": [
+      [
+        129,
+        34
+      ],
+      [
+        71,
+        166
+      ]
+    ]
+  }
+}
