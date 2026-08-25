@@ -28,13 +28,23 @@ const redIcon = new L.Icon({
 });
 
 // ── Map click handler ─────────────────────────────────────────────────────────
-const MapClickHandler = ({ onAddPoint, enabled }) => {
+const MapClickHandler = ({ onAddPoint, onMouseMove, enabled }) => {
   useMapEvents({
     click(e) {
       if (enabled) {
         onAddPoint([e.latlng.lat, e.latlng.lng]);
       }
     },
+    mousemove(e) {
+      if (enabled && onMouseMove) {
+        onMouseMove(e.latlng);
+      }
+    },
+    mouseout() {
+      if (enabled && onMouseMove) {
+        onMouseMove(null);
+      }
+    }
   });
   return null;
 };
@@ -57,7 +67,62 @@ function calcArea(points) {
 
 // ── GPS Map Component ─────────────────────────────────────────────────────────
 const GpsMap = ({ points, setPoints, locked }) => {
-  const DEFAULT_CENTER = [20.5937, 78.9629]; // India center
+  const [isLocating, setIsLocating] = useState(false);
+  const [mapCenter, setMapCenter] = useState([20.5937, 78.9629]); // India center
+  const [mousePos, setMousePos] = useState(null);
+
+  const handleAddPoint = async (lat, lng) => {
+    const newPoint = { lat, lng, name: "Fetching location name..." };
+    setPoints((prev) => [...prev, newPoint]);
+    setMapCenter([lat, lng]);
+
+    try {
+      const res = await fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lng}&zoom=18&addressdetails=1`);
+      const data = await res.json();
+      const name = data.display_name || "Unknown Location";
+      setPoints((prev) => prev.map((p) => (p === newPoint ? { ...p, name } : p)));
+    } catch (e) {
+      setPoints((prev) => prev.map((p) => (p === newPoint ? { ...p, name: "Unknown Location" } : p)));
+    }
+  };
+
+  const handleRecordLocation = (e) => {
+    e.preventDefault(); // Prevent form submission if inside a form
+    if (!navigator.geolocation) {
+      alert("Geolocation is not supported by your browser");
+      return;
+    }
+    setIsLocating(true);
+    navigator.geolocation.getCurrentPosition(
+      (position) => {
+        handleAddPoint(position.coords.latitude, position.coords.longitude);
+        setIsLocating(false);
+      },
+      (error) => {
+        console.error("Error getting location", error);
+        alert("Unable to retrieve your location. Please ensure location services are enabled.");
+        setIsLocating(false);
+      },
+      { enableHighAccuracy: true }
+    );
+  };
+
+  const handleDragPoint = (index, lat, lng) => {
+    setPoints(prev => prev.map((p, i) => (i === index ? { ...p, lat, lng } : p)));
+  };
+
+  const handleDragEnd = async (index, lat, lng) => {
+    setPoints(prev => prev.map((p, i) => (i === index ? { ...p, lat, lng, name: "Fetching location name..." } : p)));
+    try {
+      const res = await fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lng}&zoom=18&addressdetails=1`);
+      const data = await res.json();
+      const name = data.display_name || "Unknown Location";
+      setPoints((prev) => prev.map((p, i) => (i === index ? { ...p, name } : p)));
+    } catch (e) {
+      setPoints((prev) => prev.map((p, i) => (i === index ? { ...p, name: "Unknown Location" } : p)));
+    }
+  };
+
   const polygonColor = locked ? '#138808' : '#c8102e';
 
   return (
@@ -69,8 +134,8 @@ const GpsMap = ({ points, setPoints, locked }) => {
           {locked
             ? `✅ GPS Polygon locked — ${points.length} boundary points captured`
             : points.length === 0
-            ? 'Click on the map to add farm boundary points (minimum 3 required)'
-            : `${points.length} point${points.length > 1 ? 's' : ''} added — add more or click "Lock Polygon" when done`}
+            ? 'Tap on the map or click "Record Current Location" to add points.'
+            : `${points.length} point${points.length > 1 ? 's' : ''} added — you can drag markers to adjust them.`}
         </span>
       </div>
 
@@ -86,11 +151,25 @@ const GpsMap = ({ points, setPoints, locked }) => {
             attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
             url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
           />
-          <MapClickHandler onAddPoint={(p) => setPoints((prev) => [...prev, p])} enabled={!locked} />
+          <MapClickHandler 
+            onAddPoint={(lat, lng) => handleAddPoint(lat, lng)} 
+            onMouseMove={(pos) => setMousePos(pos)}
+            enabled={!locked} 
+          />
+          <RecenterMap center={mapCenter} />
 
           {/* Markers */}
           {points.map((pt, i) => (
-            <Marker key={i} position={pt} icon={redIcon}>
+            <Marker 
+              key={i} 
+              position={[pt.lat, pt.lng]} 
+              icon={redIcon}
+              draggable={!locked}
+              eventHandlers={{
+                drag: (e) => handleDragPoint(i, e.target.getLatLng().lat, e.target.getLatLng().lng),
+                dragend: (e) => handleDragEnd(i, e.target.getLatLng().lat, e.target.getLatLng().lng)
+              }}
+            >
               <Popup>
                 <div className="text-xs font-mono">
                   <b>Point {i + 1}</b><br />
@@ -105,6 +184,14 @@ const GpsMap = ({ points, setPoints, locked }) => {
             <Polygon
               positions={points}
               pathOptions={{ color: polygonColor, fillColor: polygonColor, fillOpacity: 0.15, weight: 2 }}
+            />
+          )}
+
+          {/* Preview Polygon */}
+          {!locked && points.length > 0 && mousePos && (
+            <Polygon
+              positions={[...points.map(pt => [pt.lat, pt.lng]), [mousePos.lat, mousePos.lng]]}
+              pathOptions={{ color: '#888', dashArray: '5, 10', fillOpacity: 0.1, weight: 2 }}
             />
           )}
         </MapContainer>

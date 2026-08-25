@@ -15,7 +15,13 @@ Routing matrix (keyed on cibil_score from the application):
 from __future__ import annotations
 
 import random
+import sys
+import os
 from typing import Any
+
+# Inject parent directory into sys.path to allow importing from the sibling 'data' directory
+sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+from data.master_orchestrator import gather_all_farm_data
 
 # ---------------------------------------------------------------------------
 # ── STUB INTEGRATION POINTS ─────────────────────────────────────────────────
@@ -25,27 +31,31 @@ from typing import Any
 # ---------------------------------------------------------------------------
 
 
-def get_environmental_data(gps_polygon: list[list[float]]) -> dict[str, Any]:
+def get_environmental_data(application: dict[str, Any]) -> dict[str, Any]:
     """
-    STUB → Replace with a real call to the weather/soil microservice.
-
-    Expected future implementation:
-        - Hit NASA POWER / IMD API for rainfall_mm
-        - Hit ISRIC SoilGrids API for soil_nitrogen
-        - Hit Sentinel-2 NDVI service for historical_ndvi
-
-    Args:
-        gps_polygon: List of [lat, lon] pairs defining the farm boundary.
-
-    Returns:
-        dict with keys: historical_ndvi (float), rainfall_mm (int),
-        soil_nitrogen (str: "High" | "Medium" | "Low")
+    Fetches real environmental data from the Live APIs via master_orchestrator.
     """
-    # MOCK DATA — swap body for real API calls when ready
+    gps_polygon = application.get("gps_polygon", [])
+    crop_type = application.get("crop_type", "Unknown")
+    
+    # Default coordinates if missing (e.g. Ludhiana, Punjab)
+    lat = 30.900965
+    lon = 75.857277
+    if gps_polygon and len(gps_polygon) > 0 and len(gps_polygon[0]) >= 2:
+        lat = gps_polygon[0][0]
+        lon = gps_polygon[0][1]
+        
+    state = "Punjab"  # Defaulting to Punjab for Mandy Price API for now
+    
+    # Fetch live data using the orchestrator
+    real_data = gather_all_farm_data(lat, lon, crop_type, state)
+    
+    # Map the real data to the schema expected by the frontend
     return {
-        "historical_ndvi": 0.75,
-        "rainfall_mm": 110,
-        "soil_nitrogen": "High",
+        "historical_ndvi": real_data["satellite"].get("ndvi", 0.0),
+        "rainfall_mm": real_data["weather"].get("daily_precipitation_sum", 0.0),
+        "soil_nitrogen": "Medium", # Fallback for now as it's not provided by current APIs
+        "market_data": real_data["market"] # Raw response included for future use
     }
 
 
@@ -124,7 +134,7 @@ def route_application(application: dict[str, Any]) -> dict[str, Any]:
     gps_polygon: list = application.get("gps_polygon", [])
 
     if cibil_score == -1:
-        return _route_a_cold_start(gps_polygon)
+        return _route_a_cold_start(application)
     elif cibil_score > 700:
         return _route_b_fast_track(cibil_score)
     else:
@@ -133,13 +143,13 @@ def route_application(application: dict[str, Any]) -> dict[str, Any]:
 
 # ── Route A: Cold-Start (no CIBIL history) ──────────────────────────────────
 
-def _route_a_cold_start(gps_polygon: list[list[float]]) -> dict[str, Any]:
+def _route_a_cold_start(application: dict[str, Any]) -> dict[str, Any]:
     """
     Route A — Farmer has no CIBIL history (cibil_score == -1).
     Strategy: derive creditworthiness entirely from environmental/satellite data.
     """
     # Integration point 1: fetch satellite + soil + weather data
-    env_data = get_environmental_data(gps_polygon)
+    env_data = get_environmental_data(application)
 
     # Integration point 2: run ML scoring model
     score_result = score_application(env_data)

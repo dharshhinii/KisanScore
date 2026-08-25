@@ -1,0 +1,13 @@
+farm_id,lat,lon,farmer_type,ndvi_5yr_avg,rainfall_mm,soil_npk_index,crop_price_inr,default_risk_label
+FARM_A,30.8200,75.7500,Experienced,0.75,850,88,2200,0
+FARM_A,30.8200,75.7500,Experienced,0.72,810,85,2150,0
+FARM_A,30.8200,75.7500,Experienced,0.78,900,90,2300,0
+FARM_B,11.0500,77.4500,New_Farmer,0.00,600,65,2400,1
+FARM_B,11.0500,77.4500,New_Farmer,0.00,620,68,2450,0
+FARM_B,11.0500,77.4500,New_Farmer,0.00,590,62,2350,1
+FARM_C,18.2345,74.1234,Experienced,0.45,300,45,1800,1
+FARM_C,18.2345,74.1234,Experienced,0.40,250,42,1750,1
+FARM_C,18.2345,74.1234,Experienced,0.50,350,50,1900,1
+FARM_D,22.9868,87.8550,Experienced,0.85,1200,95,2800,0
+FARM_D,22.9868,87.8550,Experienced,0.82,1150,92,2750,0
+FARM_E,28.7041,77.1025,New_Farmer,0.00,700,70,2100,0
