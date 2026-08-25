@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { MapContainer, TileLayer, Marker, Polygon, useMapEvents, Popup } from 'react-leaflet';
+import { MapContainer, TileLayer, Marker, Polygon, useMapEvents, Popup, useMap } from 'react-leaflet';
 import L from 'leaflet';
 import {
   ArrowLeft, CheckCircle2, Loader2, Smartphone, MapPin,
@@ -32,7 +32,7 @@ const MapClickHandler = ({ onAddPoint, enabled }) => {
   useMapEvents({
     click(e) {
       if (enabled) {
-        onAddPoint([e.latlng.lat, e.latlng.lng]);
+        onAddPoint(e.latlng.lat, e.latlng.lng);
       }
     },
   });
@@ -46,8 +46,8 @@ function calcArea(points) {
   const n = points.length;
   for (let i = 0; i < n; i++) {
     const j = (i + 1) % n;
-    area += points[i][1] * points[j][0];
-    area -= points[j][1] * points[i][0];
+    area += points[i].lng * points[j].lat;
+    area -= points[j].lng * points[i].lat;
   }
   area = Math.abs(area) / 2;
   // Convert from degrees² to m² (rough at India lat ~20°N) then to acres
@@ -57,8 +57,58 @@ function calcArea(points) {
 
 // ── GPS Map Component ─────────────────────────────────────────────────────────
 const GpsMap = ({ points, setPoints, locked }) => {
-  const DEFAULT_CENTER = [20.5937, 78.9629]; // India center
+  const [isLocating, setIsLocating] = useState(false);
+  const [mapCenter, setMapCenter] = useState([20.5937, 78.9629]); // India center
+
+  const handleAddPoint = async (lat, lng) => {
+    const newPoint = { lat, lng, name: "Fetching location name..." };
+    setPoints((prev) => [...prev, newPoint]);
+    setMapCenter([lat, lng]);
+
+    try {
+      const res = await fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lng}&zoom=18&addressdetails=1`);
+      const data = await res.json();
+      const name = data.display_name || "Unknown Location";
+      setPoints((prev) => prev.map((p) => (p === newPoint ? { ...p, name } : p)));
+    } catch (e) {
+      setPoints((prev) => prev.map((p) => (p === newPoint ? { ...p, name: "Unknown Location" } : p)));
+    }
+  };
+
+  const handleRecordLocation = (e) => {
+    e.preventDefault(); // Prevent form submission if inside a form
+    if (!navigator.geolocation) {
+      alert("Geolocation is not supported by your browser");
+      return;
+    }
+    setIsLocating(true);
+    navigator.geolocation.getCurrentPosition(
+      (position) => {
+        handleAddPoint(position.coords.latitude, position.coords.longitude);
+        setIsLocating(false);
+      },
+      (error) => {
+        console.error("Error getting location", error);
+        alert("Unable to retrieve your location. Please ensure location services are enabled.");
+        setIsLocating(false);
+      },
+      { enableHighAccuracy: true }
+    );
+  };
+
   const polygonColor = locked ? '#138808' : '#c8102e';
+
+  // Helper component to recenter map when location is recorded
+  const RecenterMap = ({ center }) => {
+    const map = useMap();
+    useEffect(() => {
+      if (center) {
+        // Zoom in to level 18 if we just recorded a location and are zoomed out
+        map.setView(center, map.getZoom() < 16 ? 18 : map.getZoom());
+      }
+    }, [center, map]);
+    return null;
+  };
 
   return (
     <div className="flex flex-col gap-3">
@@ -69,32 +119,45 @@ const GpsMap = ({ points, setPoints, locked }) => {
           {locked
             ? `✅ GPS Polygon locked — ${points.length} boundary points captured`
             : points.length === 0
-            ? 'Click on the map to add farm boundary points (minimum 3 required)'
-            : `${points.length} point${points.length > 1 ? 's' : ''} added — add more or click "Lock Polygon" when done`}
+            ? 'Move to a farm corner and tap "Record Current Location" (minimum 3 required).'
+            : `${points.length} point${points.length > 1 ? 's' : ''} added — move to next corner and record.`}
         </span>
       </div>
+
+      {!locked && (
+        <button
+          onClick={handleRecordLocation}
+          disabled={isLocating}
+          className="flex items-center justify-center gap-2 w-full py-3 rounded-lg bg-blue-600 hover:bg-blue-700 text-white font-bold text-sm shadow-md transition-colors disabled:opacity-50"
+        >
+          {isLocating ? <Loader2 size={16} className="animate-spin" /> : <MapPin size={16} />}
+          {isLocating ? 'Acquiring GPS Signal...' : 'Record Current Location'}
+        </button>
+      )}
 
       {/* Map */}
       <div className="rounded-xl overflow-hidden border border-gray-300 shadow-sm" style={{ height: 320 }}>
         <MapContainer
-          center={DEFAULT_CENTER}
+          center={mapCenter}
           zoom={5}
           style={{ height: '100%', width: '100%' }}
           className="z-0"
         >
           <TileLayer
-            attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
-            url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+            attribution='&copy; Google Maps'
+            url="https://mt1.google.com/vt/lyrs=y&x={x}&y={y}&z={z}"
           />
-          <MapClickHandler onAddPoint={(p) => setPoints((prev) => [...prev, p])} enabled={!locked} />
+          <MapClickHandler onAddPoint={(lat, lng) => handleAddPoint(lat, lng)} enabled={!locked} />
+          <RecenterMap center={mapCenter} />
 
           {/* Markers */}
           {points.map((pt, i) => (
-            <Marker key={i} position={pt} icon={redIcon}>
+            <Marker key={i} position={[pt.lat, pt.lng]} icon={redIcon}>
               <Popup>
-                <div className="text-xs font-mono">
-                  <b>Point {i + 1}</b><br />
-                  {pt[0].toFixed(5)}°N, {pt[1].toFixed(5)}°E
+                <div className="text-xs font-mono min-w-[200px]">
+                  <b className="text-gray-900">Point {i + 1}</b><br />
+                  <span className="text-[#c8102e] font-semibold">{pt.lat.toFixed(6)}°N, {pt.lng.toFixed(6)}°E</span><br />
+                  <span className="text-[10px] text-gray-500 mt-1 block leading-tight">{pt.name}</span>
                 </div>
               </Popup>
             </Marker>
@@ -103,7 +166,7 @@ const GpsMap = ({ points, setPoints, locked }) => {
           {/* Polygon */}
           {points.length >= 3 && (
             <Polygon
-              positions={points}
+              positions={points.map(pt => [pt.lat, pt.lng])}
               pathOptions={{ color: polygonColor, fillColor: polygonColor, fillOpacity: 0.15, weight: 2 }}
             />
           )}
@@ -121,16 +184,21 @@ const GpsMap = ({ points, setPoints, locked }) => {
               </button>
             )}
           </div>
-          <div className="max-h-28 overflow-y-auto divide-y divide-gray-100">
+          <div className="max-h-36 overflow-y-auto divide-y divide-gray-100">
             {points.map((pt, i) => (
-              <div key={i} className="flex items-center justify-between px-3 py-1.5 text-xs">
-                <span className="text-gray-500">Point {i + 1}</span>
-                <span className="font-mono text-gray-700">
-                  {pt[0].toFixed(5)}°N, {pt[1].toFixed(5)}°E
-                </span>
+              <div key={i} className="flex items-start justify-between px-3 py-2 text-xs">
+                <div className="flex flex-col gap-0.5">
+                  <span className="font-semibold text-gray-700">Point {i + 1}</span>
+                  <span className="font-mono text-[10px] text-gray-500">
+                    {pt.lat.toFixed(5)}°N, {pt.lng.toFixed(5)}°E
+                  </span>
+                  <span className="text-[9px] text-gray-400 mt-0.5 line-clamp-2 max-w-[220px]" title={pt.name}>
+                    {pt.name}
+                  </span>
+                </div>
                 {!locked && (
-                  <button onClick={() => setPoints((p) => p.filter((_, j) => j !== i))} className="text-red-400 hover:text-red-600 ml-2">
-                    <Trash2 size={11} />
+                  <button onClick={() => setPoints((p) => p.filter((_, j) => j !== i))} className="text-red-400 hover:text-red-600 ml-2 mt-1 shrink-0">
+                    <Trash2 size={13} />
                   </button>
                 )}
               </div>
@@ -288,7 +356,7 @@ export default function Postman() {
         farmer_name: farmerName.trim(),
         crop_type: crop,
         land_size_acres: parseFloat(landAcres) || parseFloat(calcArea(polygonPoints)) || 1.0,
-        gps_polygon: polygonPoints,
+        gps_polygon: polygonPoints.map(p => [p.lat, p.lng]),
         cibil_score: -1,
         consent_captured: true,
       });
