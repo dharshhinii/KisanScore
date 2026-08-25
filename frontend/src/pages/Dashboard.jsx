@@ -53,47 +53,36 @@ const GovBar = () => (
 );
 
 // ── IPPB Header ───────────────────────────────────────────────────────────────
-const IPPBHeader = ({ onMenuClick, onRefresh, loading }) => (
-  <header className="bg-[#c8102e] shadow-md shrink-0 border-b border-red-900">
-    <div className="px-4 py-3 flex items-center gap-3">
-      <button onClick={onMenuClick} className="lg:hidden p-1.5 rounded bg-black/20 hover:bg-black/30 transition-colors">
-        <Menu size={18} className="text-white" />
-      </button>
-      <div className="flex items-center gap-3">
-        <div className="w-8 h-8 bg-black rounded-full flex items-center justify-center shrink-0 shadow-inner">
-          <span className="text-[#c8102e] font-black text-[8px] leading-tight text-center">IPPB</span>
-        </div>
-        <div>
-          <p className="text-white font-black text-sm leading-tight">KisanScore · Credit Evaluation System</p>
-          <p className="text-red-200 text-[10px] hidden sm:block">India Post Payments Bank · Bank Officer Portal</p>
-        </div>
-      </div>
-      <div className="ml-auto flex items-center gap-2">
-        <button onClick={onRefresh}
-          className="flex items-center gap-1.5 px-3 py-1.5 rounded bg-black/20 hover:bg-black/30 border border-black/10 text-white text-xs font-medium transition-colors">
-          <RefreshCw size={12} className={loading ? 'animate-spin' : ''} /> Refresh
+const IPPBHeader = ({ onMenuClick, onRefresh, loading }) => {
+  return (
+    <header className="bg-[#c8102e] shadow-md shrink-0 border-b border-red-900">
+      <div className="px-4 py-3 flex items-center gap-3">
+        <button onClick={onMenuClick} className="lg:hidden p-1.5 rounded bg-black/20 hover:bg-black/30 transition-colors">
+          <Menu size={18} className="text-white" />
         </button>
-        <div className="hidden sm:flex items-center gap-1.5 px-3 py-1.5 rounded bg-green-500/20 border border-green-500/30">
-          <span className="w-1.5 h-1.5 rounded-full bg-green-400 animate-pulse" />
-          <span className="text-green-300 text-xs font-medium">AI Online</span>
+        <div className="flex items-center gap-3">
+          <div className="w-8 h-8 bg-black rounded-full flex items-center justify-center shrink-0 shadow-inner">
+            <span className="text-[#c8102e] font-black text-[8px] leading-tight text-center">IPPB</span>
+          </div>
+          <div>
+            <p className="text-white font-black text-sm leading-tight">KisanScore · Credit Evaluation System</p>
+            <p className="text-red-200 text-[10px] hidden sm:block">India Post Payments Bank · Bank Officer Portal</p>
+          </div>
+        </div>
+        <div className="ml-auto flex items-center gap-2">
+          <button onClick={onRefresh}
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded bg-black/20 hover:bg-black/30 border border-black/10 text-white text-xs font-medium transition-colors">
+            <RefreshCw size={12} className={loading ? 'animate-spin' : ''} /> Refresh
+          </button>
+          <div className="hidden sm:flex items-center gap-1.5 px-3 py-1.5 rounded bg-green-500/20 border border-green-500/30">
+            <span className="w-1.5 h-1.5 rounded-full bg-green-400 animate-pulse" />
+            <span className="text-green-300 text-xs font-medium">AI Online</span>
+          </div>
         </div>
       </div>
-    </div>
-    
-    {/* Sub-nav */}
-    <div className="bg-[#a00d25] px-4 border-t border-red-800/50">
-      <div className="flex items-center gap-0 text-xs overflow-x-auto">
-        {['Dashboard', 'Pending Approvals', 'Approved Loans', 'Rejected', 'Reports', 'Settings'].map((item, i) => (
-          <a key={item} href="#" onClick={(e) => e.preventDefault()}
-            className={`px-3 sm:px-4 py-2 font-medium whitespace-nowrap border-b-2 transition-colors
-              ${i === 0 ? 'border-white text-white font-bold' : 'border-transparent text-red-200 hover:text-white'}`}>
-            {item}
-          </a>
-        ))}
-      </div>
-    </div>
-  </header>
-);
+    </header>
+  );
+};
 
 // ── KPI Card ──────────────────────────────────────────────────────────────────
 const KpiCard = ({ icon: Icon, label, value, sub, colorClass }) => (
@@ -294,6 +283,36 @@ const SettingsView = () => (
   </div>
 );
 
+const ApprovedView = () => (
+  <div className="flex flex-col flex-1 p-6 text-gray-300">
+    <h2 className="text-xl font-bold text-white mb-6">Approved Loans</h2>
+    <div className="flex flex-col items-center justify-center flex-1 text-gray-500 bg-[#1a1a1a] rounded-xl border border-gray-800">
+      <CheckCircle2 size={48} className="mb-4 text-green-500/50" />
+      <p>No recently approved loans to display.</p>
+    </div>
+  </div>
+);
+
+const RejectedView = () => (
+  <div className="flex flex-col flex-1 p-6 text-gray-300">
+    <h2 className="text-xl font-bold text-white mb-6">Rejected Applications</h2>
+    <div className="flex flex-col items-center justify-center flex-1 text-gray-500 bg-[#1a1a1a] rounded-xl border border-gray-800">
+      <XCircle size={48} className="mb-4 text-red-500/50" />
+      <p>No recently rejected applications to display.</p>
+    </div>
+  </div>
+);
+
+const ReportsView = () => (
+  <div className="flex flex-col flex-1 p-6 text-gray-300">
+    <h2 className="text-xl font-bold text-white mb-6">Analytics & Reports</h2>
+    <div className="flex flex-col items-center justify-center flex-1 text-gray-500 bg-[#1a1a1a] rounded-xl border border-gray-800">
+      <BarChart2 size={48} className="mb-4 text-blue-500/50" />
+      <p>Analytics dashboard is being populated...</p>
+    </div>
+  </div>
+);
+
 // ── Main Dashboard ────────────────────────────────────────────────────────────
 export default function Dashboard() {
   const navigate = useNavigate();
@@ -317,6 +336,8 @@ export default function Dashboard() {
 
   useEffect(() => { loadQueue(); }, [loadQueue]);
 
+  const pendingQueue = queue.filter(app => app.status !== 'APPROVED' && app.status !== 'REJECTED');
+
   return (
     <div className="h-screen bg-[#0f0f0f] flex flex-col overflow-hidden font-sans text-gray-200">
       <GovBar />
@@ -331,6 +352,9 @@ export default function Dashboard() {
               {[
                 { id: 'dashboard', icon: LayoutDashboard, label: 'Dashboard' },
                 { id: 'approvals', icon: Clock, label: 'Pending Approvals' },
+                { id: 'approved', icon: CheckCircle2, label: 'Approved Loans' },
+                { id: 'rejected', icon: XCircle, label: 'Rejected' },
+                { id: 'reports', icon: BarChart2, label: 'Reports' },
                 { id: 'settings', icon: Settings, label: 'System Settings' }
               ].map(n => (
                 <button key={n.id} onClick={() => setActiveNav(n.id)}
@@ -360,15 +384,20 @@ export default function Dashboard() {
 
         {/* Main Area */}
         <div className="flex-1 flex flex-col min-w-0 bg-[#0f0f0f]">
-          {activeNav === 'settings' ? <SettingsView /> : (
+          {activeNav === 'settings' ? <SettingsView /> : 
+           activeNav === 'approved' ? <ApprovedView /> : 
+           activeNav === 'rejected' ? <RejectedView /> : 
+           activeNav === 'reports' ? <ReportsView /> : (
             <>
               {/* KPIs */}
-              <div className="grid grid-cols-2 xl:grid-cols-4 gap-4 p-5 bg-[#121212] border-b border-gray-800 shrink-0">
-                <KpiCard icon={Hourglass} label="Pending Review" value={queue.length} sub="Applications in queue" colorClass="bg-red-500/20 text-red-500 border border-red-500/30" />
-                <KpiCard icon={CheckCircle2} label="Approved Today" value="12" sub="₹8.2L disbursed" colorClass="bg-green-500/20 text-green-500 border border-green-500/30" />
-                <KpiCard icon={XCircle} label="Rejected Today" value="3" sub="Risk threshold exceeded" colorClass="bg-gray-800 text-gray-400 border border-gray-700" />
-                <KpiCard icon={LineChart} label="Avg KisanScore" value="718" sub="Portfolio health: Good" colorClass="bg-blue-500/20 text-blue-400 border border-blue-500/30" />
-              </div>
+              {activeNav === 'dashboard' && (
+                <div className="grid grid-cols-2 xl:grid-cols-4 gap-4 p-5 bg-[#121212] border-b border-gray-800 shrink-0">
+                  <KpiCard icon={Hourglass} label="Pending Review" value={pendingQueue.length} sub="Applications in queue" colorClass="bg-red-500/20 text-red-500 border border-red-500/30" />
+                  <KpiCard icon={CheckCircle2} label="Approved Today" value="12" sub="₹8.2L disbursed" colorClass="bg-green-500/20 text-green-500 border border-green-500/30" />
+                  <KpiCard icon={XCircle} label="Rejected Today" value="3" sub="Risk threshold exceeded" colorClass="bg-gray-800 text-gray-400 border border-gray-700" />
+                  <KpiCard icon={LineChart} label="Avg KisanScore" value="718" sub="Portfolio health: Good" colorClass="bg-blue-500/20 text-blue-400 border border-blue-500/30" />
+                </div>
+              )}
 
               {/* Table / Details Split */}
               <div className="flex flex-1 min-h-0 bg-[#0f0f0f] p-4 gap-4">
@@ -376,7 +405,7 @@ export default function Dashboard() {
                   <div className="px-4 py-3 bg-[#111] border-b border-gray-800 flex items-center gap-2 shrink-0">
                     <div className="w-1 h-4 bg-[#c8102e] rounded-full" />
                     <h2 className="text-sm font-bold text-white">Pending Applications</h2>
-                    <span className="px-2 py-0.5 text-[10px] rounded-full bg-red-500/20 text-red-400 font-bold border border-red-500/30 ml-2">{queue.length}</span>
+                    <span className="px-2 py-0.5 text-[10px] rounded-full bg-red-500/20 text-red-400 font-bold border border-red-500/30 ml-2">{pendingQueue.length}</span>
                   </div>
 
                   <div className="flex-1 overflow-y-auto">
@@ -390,7 +419,7 @@ export default function Dashboard() {
                         </div>
                       </div>
                     )}
-                    {!queueError && queue.map(app => (
+                    {!queueError && pendingQueue.map(app => (
                       <div key={app.application_id} onClick={() => setSelectedId(app.application_id)}
                         className={`flex items-center gap-4 px-4 py-4 border-b border-gray-800 cursor-pointer transition-colors
                           ${selectedId === app.application_id ? 'bg-[#c8102e]/10 border-l-2 border-l-[#c8102e]' : 'hover:bg-[#1a1a1a]'}
