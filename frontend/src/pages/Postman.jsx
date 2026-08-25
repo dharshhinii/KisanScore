@@ -1,13 +1,13 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { MapContainer, TileLayer, Marker, Polygon, useMapEvents, Popup } from 'react-leaflet';
+import { MapContainer, TileLayer, Marker, Polygon, useMapEvents, Popup, useMap } from 'react-leaflet';
 import L from 'leaflet';
 import {
   ArrowLeft, CheckCircle2, Loader2, Smartphone, MapPin,
   Send, User, Wheat, ChevronRight, AlertCircle, Trash2,
   Info,
 } from 'lucide-react';
-import { submitApplication } from '../api/client';
+import { submitApplication, fetchScore } from '../api/client';
 
 // Fix Leaflet default icon (Vite asset issue)
 delete L.Icon.Default.prototype._getIconUrl;
@@ -32,7 +32,7 @@ const MapClickHandler = ({ onAddPoint, onMouseMove, enabled }) => {
   useMapEvents({
     click(e) {
       if (enabled) {
-        onAddPoint([e.latlng.lat, e.latlng.lng]);
+        onAddPoint(e.latlng.lat, e.latlng.lng);
       }
     },
     mousemove(e) {
@@ -56,8 +56,8 @@ function calcArea(points) {
   const n = points.length;
   for (let i = 0; i < n; i++) {
     const j = (i + 1) % n;
-    area += points[i][1] * points[j][0];
-    area -= points[j][1] * points[i][0];
+    area += points[i].lng * points[j].lat;
+    area -= points[j].lng * points[i].lat;
   }
   area = Math.abs(area) / 2;
   // Convert from degrees² to m² (rough at India lat ~20°N) then to acres
@@ -125,6 +125,18 @@ const GpsMap = ({ points, setPoints, locked }) => {
 
   const polygonColor = locked ? '#138808' : '#c8102e';
 
+  // Helper component to recenter map when location is recorded
+  const RecenterMap = ({ center }) => {
+    const map = useMap();
+    useEffect(() => {
+      if (center) {
+        // Zoom in to level 18 if we just recorded a location and are zoomed out
+        map.setView(center, map.getZoom() < 16 ? 18 : map.getZoom());
+      }
+    }, [center, map]);
+    return null;
+  };
+
   return (
     <div className="flex flex-col gap-3">
       {/* Instructions */}
@@ -139,17 +151,28 @@ const GpsMap = ({ points, setPoints, locked }) => {
         </span>
       </div>
 
+      {!locked && (
+        <button
+          onClick={handleRecordLocation}
+          disabled={isLocating}
+          className="flex items-center justify-center gap-2 w-full py-3 rounded-lg bg-blue-600 hover:bg-blue-700 text-white font-bold text-sm shadow-md transition-colors disabled:opacity-50"
+        >
+          {isLocating ? <Loader2 size={16} className="animate-spin" /> : <MapPin size={16} />}
+          {isLocating ? 'Acquiring GPS Signal...' : 'Record Current Location'}
+        </button>
+      )}
+
       {/* Map */}
       <div className="rounded-xl overflow-hidden border border-gray-300 shadow-sm" style={{ height: 320 }}>
         <MapContainer
-          center={DEFAULT_CENTER}
+          center={mapCenter}
           zoom={5}
           style={{ height: '100%', width: '100%' }}
           className="z-0"
         >
           <TileLayer
-            attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
-            url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+            attribution='&copy; Google Maps'
+            url="https://mt1.google.com/vt/lyrs=y&x={x}&y={y}&z={z}"
           />
           <MapClickHandler 
             onAddPoint={(lat, lng) => handleAddPoint(lat, lng)} 
@@ -171,9 +194,10 @@ const GpsMap = ({ points, setPoints, locked }) => {
               }}
             >
               <Popup>
-                <div className="text-xs font-mono">
-                  <b>Point {i + 1}</b><br />
-                  {pt[0].toFixed(5)}°N, {pt[1].toFixed(5)}°E
+                <div className="text-xs font-mono min-w-[200px]">
+                  <b className="text-gray-900">Point {i + 1}</b><br />
+                  <span className="text-[#c8102e] font-semibold">{pt.lat.toFixed(6)}°N, {pt.lng.toFixed(6)}°E</span><br />
+                  <span className="text-[10px] text-gray-500 mt-1 block leading-tight">{pt.name}</span>
                 </div>
               </Popup>
             </Marker>
@@ -182,7 +206,7 @@ const GpsMap = ({ points, setPoints, locked }) => {
           {/* Polygon */}
           {points.length >= 3 && (
             <Polygon
-              positions={points}
+              positions={points.map(pt => [pt.lat, pt.lng])}
               pathOptions={{ color: polygonColor, fillColor: polygonColor, fillOpacity: 0.15, weight: 2 }}
             />
           )}
@@ -208,16 +232,21 @@ const GpsMap = ({ points, setPoints, locked }) => {
               </button>
             )}
           </div>
-          <div className="max-h-28 overflow-y-auto divide-y divide-gray-100">
+          <div className="max-h-36 overflow-y-auto divide-y divide-gray-100">
             {points.map((pt, i) => (
-              <div key={i} className="flex items-center justify-between px-3 py-1.5 text-xs">
-                <span className="text-gray-500">Point {i + 1}</span>
-                <span className="font-mono text-gray-700">
-                  {pt[0].toFixed(5)}°N, {pt[1].toFixed(5)}°E
-                </span>
+              <div key={i} className="flex items-start justify-between px-3 py-2 text-xs">
+                <div className="flex flex-col gap-0.5">
+                  <span className="font-semibold text-gray-700">Point {i + 1}</span>
+                  <span className="font-mono text-[10px] text-gray-500">
+                    {pt.lat.toFixed(5)}°N, {pt.lng.toFixed(5)}°E
+                  </span>
+                  <span className="text-[9px] text-gray-400 mt-0.5 line-clamp-2 max-w-[220px]" title={pt.name}>
+                    {pt.name}
+                  </span>
+                </div>
                 {!locked && (
-                  <button onClick={() => setPoints((p) => p.filter((_, j) => j !== i))} className="text-red-400 hover:text-red-600 ml-2">
-                    <Trash2 size={11} />
+                  <button onClick={() => setPoints((p) => p.filter((_, j) => j !== i))} className="text-red-400 hover:text-red-600 ml-2 mt-1 shrink-0">
+                    <Trash2 size={13} />
                   </button>
                 )}
               </div>
@@ -375,10 +404,16 @@ export default function Postman() {
         farmer_name: farmerName.trim(),
         crop_type: crop,
         land_size_acres: parseFloat(landAcres) || parseFloat(calcArea(polygonPoints)) || 1.0,
-        gps_polygon: polygonPoints,
+        gps_polygon: polygonPoints.map(p => [p.lat, p.lng]),
         cibil_score: -1,
         consent_captured: true,
       });
+      try {
+        const scoreData = await fetchScore(result.application_id);
+        result.score = scoreData.kisan_score;
+      } catch (scoreError) {
+        console.error("Failed to fetch score immediately:", scoreError);
+      }
       setSubmitted(result);
     } catch (e) {
       setError(`Submission failed: ${e.message}`);
@@ -404,7 +439,18 @@ export default function Postman() {
               <CheckCircle2 size={32} className="text-green-600" />
             </div>
             <h1 className="text-xl font-black text-gray-900 mb-1">Application Submitted!</h1>
-            <p className="text-gray-500 text-sm mb-5">The AI Scoring Engine will process this within minutes.</p>
+            <p className="text-gray-500 text-sm mb-5">The AI Scoring Engine has processed this application.</p>
+            
+            {submitted.score && (
+              <div className="mb-6 flex flex-col items-center">
+                <p className="text-xs text-gray-500 font-bold uppercase tracking-wider mb-2">Generated Kisan Score</p>
+                <div className={`w-24 h-24 rounded-full flex flex-col items-center justify-center border-4 bg-white shadow-inner
+                  ${submitted.score >= 700 ? 'border-green-500 text-green-600' : submitted.score >= 550 ? 'border-amber-500 text-amber-600' : 'border-red-500 text-red-600'}`}>
+                  <span className="text-3xl font-black">{submitted.score}</span>
+                </div>
+              </div>
+            )}
+            
             <div className="bg-gray-50 rounded-xl px-6 py-4 border border-gray-200 mb-4">
               <p className="text-xs text-gray-400 mb-1">Application Reference ID</p>
               <p className="text-2xl font-black text-[#c8102e] font-mono">{submitted.application_id}</p>
