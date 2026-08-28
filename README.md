@@ -1,6 +1,6 @@
-# 🌾 KisanScore: Satellite-Backed Alternative Credit Scoring Engine
+# 🌾 KisanScore - AI Powered Alternative Credit Scoring for Unbanked Farmers
 > **Internal Hackathon**  
-> **Theme:** Financial Inclusion | **Organization:** India Post Payments Bank (IPPB)  
+> **Theme:** Miscellaneous
 > **Team:** Code Catalyst
 
 ---
@@ -136,7 +136,3 @@ npm run dev
 
 ---
 
-## 👥 Team Code Catalyst
-* **Event:** Internal Hackathon
-* **Project:** Alternative Credit Scoring for Rural India
-* **License:** MIT License (Open Source)
